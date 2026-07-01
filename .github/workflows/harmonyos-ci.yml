@@ -44,14 +44,14 @@ jobs:
             unzip -q "${archive}"
           done
 
-          chmod +x toolchains/hvigorw
-          chmod +x toolchains/node/bin/node
+          chmod +x toolchains/hvigor/bin/hvigorw
+          chmod +x toolchains/nodejs/bin/node
           chmod +x toolchains/ohpm/bin/ohpm
 
           echo "DEVECO_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
           echo "OHOS_BASE_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
           echo "${sdk_root}/linux/toolchains" >> "${GITHUB_PATH}"
-          echo "${sdk_root}/linux/toolchains/node/bin" >> "${GITHUB_PATH}"
+          echo "${sdk_root}/linux/toolchains/nodejs/bin" >> "${GITHUB_PATH}"
           echo "${sdk_root}/linux/toolchains/ohpm/bin" >> "${GITHUB_PATH}"
           echo "${sdk_root}/linux/toolchains/hvigor/bin" >> "${GITHUB_PATH}"
 
@@ -67,8 +67,8 @@ jobs:
 
       - name: Build HAP
         run: |
-          "${DEVECO_SDK_HOME}/toolchains/hvigorw" clean --no-daemon
-          "${DEVECO_SDK_HOME}/toolchains/hvigorw" assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          "${DEVECO_SDK_HOME}/toolchains/hvigor/bin/hvigorw" clean --no-daemon
+          "${DEVECO_SDK_HOME}/toolchains/hvigor/bin/hvigorw" assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
 
       - name: Get build output path
         id: get_build_output_path
