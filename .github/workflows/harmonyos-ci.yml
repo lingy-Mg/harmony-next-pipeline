@@ -38,26 +38,22 @@ jobs:
           unzip -q "${HARMONYOS_CLI_ARCHIVE}" -d "${sdk_root}"
           rm "${HARMONYOS_CLI_ARCHIVE}"
 
-          sdkmgr_path="$(find "${sdk_root}/command-line-tools" -type f -name sdkmgr -print -quit)"
-          test -n "${sdkmgr_path}"
-          chmod +x "${sdkmgr_path}"
-          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.country=CN"
-          "${sdkmgr_path}" install java:6 js:6 ets:6 toolchains:6 native:6 --accept-license
+          tools_dir="${sdk_root}/command-line-tools"
+          sdk_home="${tools_dir}/sdk"
+          hap_sign_tool_path="$(find "${sdk_home}" -path '*/toolchains/lib/hap-sign-tool.jar' -print -quit)"
 
-          sdk_home="${sdk_root}/command-line-tools/sdk/default/openharmony"
-          hap_sign_tool_path="${sdk_home}/toolchains/lib/hap-sign-tool.jar"
-
+          test -d "${sdk_home}"
+          test -n "${hap_sign_tool_path}"
           test -f "${hap_sign_tool_path}"
 
+          chmod -R +x "${tools_dir}/bin"
+          echo "hwsdk.dir=${sdk_home}" > local.properties
           echo "DEVECO_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
           echo "OHOS_BASE_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
           echo "HOS_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
           echo "HAP_SIGN_TOOL_PATH=${hap_sign_tool_path}" >> "${GITHUB_ENV}"
-          echo "${sdk_root}/command-line-tools/bin" >> "${GITHUB_PATH}"
-          echo "${sdk_home}/toolchains" >> "${GITHUB_PATH}"
-          echo "${sdk_home}/toolchains/node/bin" >> "${GITHUB_PATH}"
-          echo "${sdk_home}/toolchains/ohpm/bin" >> "${GITHUB_PATH}"
-          echo "${sdk_home}/toolchains/hvigor/bin" >> "${GITHUB_PATH}"
+          echo "OHPM_HOME=${tools_dir}/ohpm" >> "${GITHUB_ENV}"
+          echo "${tools_dir}/bin" >> "${GITHUB_PATH}"
 
       - name: Configure registries
         run: |
@@ -117,10 +113,17 @@ jobs:
           unzip -q "${HARMONYOS_CLI_ARCHIVE}" -d "${sdk_root}"
           rm "${HARMONYOS_CLI_ARCHIVE}"
 
-          sdk_home="${sdk_root}/command-line-tools/sdk/default/openharmony"
-          hap_sign_tool_path="${sdk_home}/toolchains/lib/hap-sign-tool.jar"
+          tools_dir="${sdk_root}/command-line-tools"
+          sdk_home="${tools_dir}/sdk"
+          hap_sign_tool_path="$(find "${sdk_home}" -path '*/toolchains/lib/hap-sign-tool.jar' -print -quit)"
+
+          test -d "${sdk_home}"
+          test -n "${hap_sign_tool_path}"
           test -f "${hap_sign_tool_path}"
+          echo "hwsdk.dir=${sdk_home}" > local.properties
           echo "DEVECO_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
+          echo "OHOS_BASE_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
+          echo "HOS_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
           echo "HAP_SIGN_TOOL_PATH=${hap_sign_tool_path}" >> "${GITHUB_ENV}"
 
       - name: Download Build Output
