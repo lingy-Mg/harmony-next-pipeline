@@ -38,6 +38,12 @@ jobs:
           unzip -q "${HARMONYOS_CLI_ARCHIVE}" -d "${sdk_root}"
           rm "${HARMONYOS_CLI_ARCHIVE}"
 
+          sdkmgr_path="$(find "${sdk_root}/command-line-tools" -type f -name sdkmgr -print -quit)"
+          test -n "${sdkmgr_path}"
+          chmod +x "${sdkmgr_path}"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.country=CN"
+          "${sdkmgr_path}" install java:6 js:6 ets:6 toolchains:6 native:6 --accept-license
+
           sdk_home="${sdk_root}/command-line-tools/sdk/default/openharmony"
           hap_sign_tool_path="${sdk_home}/toolchains/lib/hap-sign-tool.jar"
 
