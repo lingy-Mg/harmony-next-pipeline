@@ -12,8 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      HARMONYOS_SDK_RELEASE: 6.1-Release
-      HARMONYOS_SDK_ARCHIVE: ohos-sdk-windows_linux-public.tar.gz
+      HARMONYOS_CLI_ARCHIVE: commandline-tools-linux-x64-6.1.0.816.zip
+      HARMONYOS_CLI_SHA256: 4b21e8a4ce19fc7eb381425a570e936c80067b8a0bef9cdcfe8a49e4764038e2
 
     steps:
       - name: Checkout code
@@ -25,50 +25,48 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
       - name: Install HarmonyOS SDK
         run: |
           set -euxo pipefail
-          sdk_url="https://repo.huaweicloud.com/harmonyos/os/${HARMONYOS_SDK_RELEASE}/${HARMONYOS_SDK_ARCHIVE}"
-          curl --fail -L -O "${sdk_url}"
-          curl --fail -L -O "${sdk_url}.sha256"
-          echo "$(cat "${HARMONYOS_SDK_ARCHIVE}.sha256") ${HARMONYOS_SDK_ARCHIVE}" | sha256sum --check --status
+          cli_url="https://github.com/Okysu/harmony-auto-build/releases/download/${HARMONYOS_CLI_ARCHIVE%.zip}/${HARMONYOS_CLI_ARCHIVE}"
+          curl --fail -L -o "${HARMONYOS_CLI_ARCHIVE}" "${cli_url}"
+          echo "${HARMONYOS_CLI_SHA256}  ${HARMONYOS_CLI_ARCHIVE}" | sha256sum --check --status
 
-          sdk_root="${RUNNER_TEMP}/harmonyos-sdk"
+          sdk_root="${RUNNER_TEMP}/harmonyos-tools"
           rm -rf "${sdk_root}"
           mkdir -p "${sdk_root}"
-          tar -xf "${HARMONYOS_SDK_ARCHIVE}" -C "${sdk_root}"
-          rm "${HARMONYOS_SDK_ARCHIVE}" "${HARMONYOS_SDK_ARCHIVE}.sha256"
+          unzip -q "${HARMONYOS_CLI_ARCHIVE}" -d "${sdk_root}"
+          rm "${HARMONYOS_CLI_ARCHIVE}"
 
-          cd "${sdk_root}/linux"
-          for archive in *.zip; do
-            unzip -q "${archive}"
-          done
+          sdk_home="${sdk_root}/command-line-tools/sdk/default/openharmony"
+          hap_sign_tool_path="${sdk_home}/toolchains/lib/hap-sign-tool.jar"
 
-          hap_sign_tool_path="$(find "${sdk_root}/linux" -type f -name 'hap-sign-tool.jar' -print -quit)"
+          test -f "${hap_sign_tool_path}"
 
-          test -n "${hap_sign_tool_path}"
-
-          echo "DEVECO_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
-          echo "OHOS_BASE_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
-          echo "HOS_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
+          echo "DEVECO_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
+          echo "OHOS_BASE_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
+          echo "HOS_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
           echo "HAP_SIGN_TOOL_PATH=${hap_sign_tool_path}" >> "${GITHUB_ENV}"
+          echo "${sdk_root}/command-line-tools/bin" >> "${GITHUB_PATH}"
+          echo "${sdk_home}/toolchains" >> "${GITHUB_PATH}"
+          echo "${sdk_home}/toolchains/node/bin" >> "${GITHUB_PATH}"
+          echo "${sdk_home}/toolchains/ohpm/bin" >> "${GITHUB_PATH}"
+          echo "${sdk_home}/toolchains/hvigor/bin" >> "${GITHUB_PATH}"
 
-      - name: Install build tools
+      - name: Configure registries
         run: |
           npm config set registry https://repo.huaweicloud.com/repository/npm/
           npm config set @ohos:registry https://repo.harmonyos.com/npm/
-          npm install
-          npm install --no-save @ohos/hvigor@6.26.1 @ohos/hvigor-ohos-plugin@6.26.1
+          ohpm config set registry https://ohpm.openharmony.cn/ohpm/
+
+      - name: Install dependencies
+        run: |
+          ohpm install --all
 
       - name: Build HAP
         run: |
-          node ./node_modules/@ohos/hvigor/bin/hvigor.js clean --no-daemon
-          node ./node_modules/@ohos/hvigor/bin/hvigor.js assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          hvigorw clean --no-daemon
+          hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
 
       - name: Get build output path
         id: get_build_output_path
@@ -88,8 +86,8 @@ jobs:
       contents: write
     if: startsWith(github.ref, 'refs/tags/v')
     env:
-      HARMONYOS_SDK_RELEASE: 6.1-Release
-      HARMONYOS_SDK_ARCHIVE: ohos-sdk-windows_linux-public.tar.gz
+      HARMONYOS_CLI_ARCHIVE: commandline-tools-linux-x64-6.1.0.816.zip
+      HARMONYOS_CLI_SHA256: 4b21e8a4ce19fc7eb381425a570e936c80067b8a0bef9cdcfe8a49e4764038e2
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -103,25 +101,20 @@ jobs:
       - name: Install HarmonyOS SDK
         run: |
           set -euxo pipefail
-          sdk_url="https://repo.huaweicloud.com/harmonyos/os/${HARMONYOS_SDK_RELEASE}/${HARMONYOS_SDK_ARCHIVE}"
-          curl --fail -L -O "${sdk_url}"
-          curl --fail -L -O "${sdk_url}.sha256"
-          echo "$(cat "${HARMONYOS_SDK_ARCHIVE}.sha256") ${HARMONYOS_SDK_ARCHIVE}" | sha256sum --check --status
+          cli_url="https://github.com/Okysu/harmony-auto-build/releases/download/${HARMONYOS_CLI_ARCHIVE%.zip}/${HARMONYOS_CLI_ARCHIVE}"
+          curl --fail -L -o "${HARMONYOS_CLI_ARCHIVE}" "${cli_url}"
+          echo "${HARMONYOS_CLI_SHA256}  ${HARMONYOS_CLI_ARCHIVE}" | sha256sum --check --status
 
-          sdk_root="${RUNNER_TEMP}/harmonyos-sdk"
+          sdk_root="${RUNNER_TEMP}/harmonyos-tools"
           rm -rf "${sdk_root}"
           mkdir -p "${sdk_root}"
-          tar -xf "${HARMONYOS_SDK_ARCHIVE}" -C "${sdk_root}"
-          rm "${HARMONYOS_SDK_ARCHIVE}" "${HARMONYOS_SDK_ARCHIVE}.sha256"
+          unzip -q "${HARMONYOS_CLI_ARCHIVE}" -d "${sdk_root}"
+          rm "${HARMONYOS_CLI_ARCHIVE}"
 
-          cd "${sdk_root}/linux"
-          for archive in *.zip; do
-            unzip -q "${archive}"
-          done
-
-          echo "DEVECO_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
-          hap_sign_tool_path="$(find "${sdk_root}/linux" -type f -name 'hap-sign-tool.jar' -print -quit)"
-          test -n "${hap_sign_tool_path}"
+          sdk_home="${sdk_root}/command-line-tools/sdk/default/openharmony"
+          hap_sign_tool_path="${sdk_home}/toolchains/lib/hap-sign-tool.jar"
+          test -f "${hap_sign_tool_path}"
+          echo "DEVECO_SDK_HOME=${sdk_home}" >> "${GITHUB_ENV}"
           echo "HAP_SIGN_TOOL_PATH=${hap_sign_tool_path}" >> "${GITHUB_ENV}"
 
       - name: Download Build Output
