@@ -15,34 +15,70 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:v5.0.4
+    env:
+      HARMONYOS_SDK_RELEASE: 6.1-Release
+      HARMONYOS_SDK_ARCHIVE: ohos-sdk-windows_linux-public.tar.gz
 
     steps:
-      # 1. 拉取代码
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2. 安装项目依赖
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install HarmonyOS SDK
+        run: |
+          set -euxo pipefail
+          sdk_url="https://repo.huaweicloud.com/harmonyos/os/${HARMONYOS_SDK_RELEASE}/${HARMONYOS_SDK_ARCHIVE}"
+          curl --fail -L -O "${sdk_url}"
+          curl --fail -L -O "${sdk_url}.sha256"
+          echo "$(cat "${HARMONYOS_SDK_ARCHIVE}.sha256") ${HARMONYOS_SDK_ARCHIVE}" | sha256sum --check --status
+
+          sdk_root="${RUNNER_TEMP}/harmonyos-sdk"
+          rm -rf "${sdk_root}"
+          mkdir -p "${sdk_root}"
+          tar -xf "${HARMONYOS_SDK_ARCHIVE}" -C "${sdk_root}"
+          rm "${HARMONYOS_SDK_ARCHIVE}" "${HARMONYOS_SDK_ARCHIVE}.sha256"
+
+          cd "${sdk_root}/linux"
+          for archive in *.zip; do
+            unzip -q "${archive}"
+          done
+
+          chmod +x toolchains/hvigorw
+          chmod +x toolchains/node/bin/node
+          chmod +x toolchains/ohpm/bin/ohpm
+
+          echo "DEVECO_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
+          echo "OHOS_BASE_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
+          echo "${sdk_root}/linux/toolchains" >> "${GITHUB_PATH}"
+          echo "${sdk_root}/linux/toolchains/node/bin" >> "${GITHUB_PATH}"
+          echo "${sdk_root}/linux/toolchains/ohpm/bin" >> "${GITHUB_PATH}"
+          echo "${sdk_root}/linux/toolchains/hvigor/bin" >> "${GITHUB_PATH}"
+
+      - name: Configure registries
+        run: |
+          npm config set registry https://repo.huaweicloud.com/repository/npm/
+          npm config set @ohos:registry https://repo.harmonyos.com/npm/
+          ohpm config set registry https://ohpm.openharmony.cn/ohpm/
+
       - name: Install dependencies
         run: |
-          cd $GITHUB_WORKSPACE
           ohpm install --all
 
-      # 3. 构建 HAP 文件
       - name: Build HAP
         run: |
-          cd $GITHUB_WORKSPACE
-          hvigorw clean --no-daemon
-          hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          "${DEVECO_SDK_HOME}/toolchains/hvigorw" clean --no-daemon
+          "${DEVECO_SDK_HOME}/toolchains/hvigorw" assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
 
-      # 4. 获取构建输出路径
       - name: Get build output path
         id: get_build_output_path
         run: |
-          cd $GITHUB_WORKSPACE
           echo "output_path=$(ls -d $PWD/entry/build/default/outputs/default)" >> $GITHUB_OUTPUT
 
-      # 5. 上传构建输出作为 artifact
       - name: Upload Build Output
         uses: actions/upload-artifact@v4
         with:
@@ -53,49 +89,81 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write 
-    container: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:latest
-    if: startsWith(github.ref, 'refs/tags/v') 
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      HARMONYOS_SDK_RELEASE: 6.1-Release
+      HARMONYOS_SDK_ARCHIVE: ohos-sdk-windows_linux-public.tar.gz
     steps:
-      # 1. 拉取代码
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2. 下载构建输出 artifact
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install HarmonyOS SDK
+        run: |
+          set -euxo pipefail
+          sdk_url="https://repo.huaweicloud.com/harmonyos/os/${HARMONYOS_SDK_RELEASE}/${HARMONYOS_SDK_ARCHIVE}"
+          curl --fail -L -O "${sdk_url}"
+          curl --fail -L -O "${sdk_url}.sha256"
+          echo "$(cat "${HARMONYOS_SDK_ARCHIVE}.sha256") ${HARMONYOS_SDK_ARCHIVE}" | sha256sum --check --status
+
+          sdk_root="${RUNNER_TEMP}/harmonyos-sdk"
+          rm -rf "${sdk_root}"
+          mkdir -p "${sdk_root}"
+          tar -xf "${HARMONYOS_SDK_ARCHIVE}" -C "${sdk_root}"
+          rm "${HARMONYOS_SDK_ARCHIVE}" "${HARMONYOS_SDK_ARCHIVE}.sha256"
+
+          cd "${sdk_root}/linux"
+          for archive in *.zip; do
+            unzip -q "${archive}"
+          done
+
+          echo "DEVECO_SDK_HOME=${sdk_root}/linux" >> "${GITHUB_ENV}"
+
       - name: Download Build Output
         uses: actions/download-artifact@v4
         with:
           name: build-output
           path: $GITHUB_WORKSPACE/entry/build/default/outputs/default
 
-      # 3. 签名 HAP 文件，如果存在签名文件和证书文件还有密钥文件和KEY_PASSWORD和KEYSTORE_PASSWORD
       - name: Sign HAP
         id: sign_hap
         if: env.SIGNING_CERT && env.SIGNING_PROFILE && env.SIGNING_KEY
         run: |
-          cd $GITHUB_WORKSPACE
-          java -jar /harmonyos-tools/command-line-tools/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar \
+          java -jar "${DEVECO_SDK_HOME}/toolchains/lib/hap-sign-tool.jar" \
           sign-app \
           -keyAlias "ide_demo_app" \
           -signAlg "SHA256withECDSA" \
           -mode "localSign" \
           -appCertFile "${{ env.SIGNING_CERT }}" \
           -profileFile "${{ env.SIGNING_PROFILE }}" \
-          -inFile "./entry/build/default/outputs/default/entry-default.hap" \
+          -inFile "./entry/build/default/outputs/default/entry-default-unsigned.hap" \
           -keystoreFile "${{ env.SIGNING_KEY }}" \
           -outFile "./entry/build/default/outputs/default/entry-default-signed.hap" \
           -keyPwd "${{ secrets.KEY_PASSWORD }}" \
           -keystorePwd "${{ secrets.KEYSTORE_PASSWORD }}" \
           -signCode "1"
 
-      # 4. 创建 GitHub Release 并上传资产
+      - name: Resolve release asset
+        id: release_asset
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/entry/build/default/outputs/default/entry-default-signed.hap" ]; then
+            echo "file=$GITHUB_WORKSPACE/entry/build/default/outputs/default/entry-default-signed.hap" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=$GITHUB_WORKSPACE/entry/build/default/outputs/default/entry-default-unsigned.hap" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: ${{ github.ref_name }}
-          files: |
-            ${{ steps.sign_hap.outcome == 'success' && '$GITHUB_WORKSPACE/entry/build/default/outputs/default/entry-default-signed.hap' || '$GITHUB_WORKSPACE/entry/build/default/outputs/default/entry-default-unsigned.hap' }}
+          files: ${{ steps.release_asset.outputs.file }}
           draft: false
           prerelease: false
         env:

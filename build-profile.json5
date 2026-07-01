@@ -4,8 +4,10 @@
         products: [
             {
                 name: "default",
+                compileSdkVersion: "6.1.1(24)",
                 signingConfig: "default",
                 compatibleSdkVersion: "5.0.0(12)",
+                targetSdkVersion: "6.1.1(24)",
                 runtimeOS: "HarmonyOS",
                 buildOption: {
                     strictMode: {
