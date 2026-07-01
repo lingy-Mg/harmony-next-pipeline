@@ -67,8 +67,8 @@ jobs:
 
       - name: Build HAP
         run: |
-          npx hvigor clean --no-daemon
-          npx hvigor assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          node ./node_modules/@ohos/hvigor/bin/hvigor.js clean --no-daemon
+          node ./node_modules/@ohos/hvigor/bin/hvigor.js assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
 
       - name: Get build output path
         id: get_build_output_path
