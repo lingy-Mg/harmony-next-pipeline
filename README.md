@@ -2,7 +2,7 @@
 
 本仓库提供了一个 **CI/CD pipeline**，用于构建、测试、签名和部署 Harmony Next 应用程序。它自动化了管理构建流程、处理依赖项和确保 HarmonyOS 应用程序顺利部署的工作流程。
 
-当前工作流默认使用公开的 **HarmonyOS 6.1 SDK** 下载源，并将工程的编译目标升级到 **6.1.1(24)**，不再依赖外部预构建 Docker 镜像。
+当前工作流默认使用公开可访问的 **HarmonyOS Command Line Tools 6.1.0.816** 镜像，并将工程的编译目标升级到 **6.1.0(23)**，不再依赖外部预构建 Docker 镜像。
 
 ## 特性
 
@@ -40,7 +40,7 @@
 
 1. **Checkout**：从仓库获取最新版本的代码。
 2. **设置 JDK**：配置 Java 17。
-3. **安装 HarmonyOS SDK**：工作流会下载 `6.1-Release` SDK 并自动注入 `toolchains` 路径。
+3. **安装 HarmonyOS SDK**：工作流会下载 `commandline-tools-linux-x64-6.1.0.816.zip` 并自动注入 `toolchains` 路径。
 4. **配置仓库源**：配置 npm 与 ohpm 仓库地址，确保 `hvigor` 与依赖可以正常解析。
 5. **安装依赖项**：使用 `ohpm install --all` 安装工程依赖。
 6. **构建应用程序**：使用 SDK 自带的 `hvigorw` 工具编译 HarmonyOS 应用程序。
